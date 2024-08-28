@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 对话助手</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.3.4/axios.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <style>
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .chat-container {
+            height: calc(100vh - 160px);
+        }
+        .message {
+            max-width: 90%;
+            word-wrap: break-word;
+        }
+        .typing-indicator::after {
+            content: '...';
+            animation: typing 1s infinite;
+        }
+        @keyframes typing {
+            0% { content: ''; }
+            25% { content: '.'; }
+            50% { content: '..'; }
+            75% { content: '...'; }
+            100% { content: ''; }
+        }
+        .topic-active {
+            background-color: #4a5568;
+            border-left: 4px solid #63b3ed;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col">
+    <div class="flex-1 flex overflow-hidden">
+        <!-- 侧边栏 -->
+        <div id="sidebar" class="w-64 bg-gray-800 text-white p-4 flex flex-col transition-all duration-300 ease-in-out">
+            <h2 class="text-2xl font-bold mb-4">主题列表</h2>
+            <button id="newTopicBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4">
+                新建主题
+            </button>
+            <div id="topicList" class="flex-1 overflow-y-auto scrollbar-hide">
+                <!-- 主题列表将在这里动态添加 -->
+            </div>
+            <button id="settingsBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded mt-4">
+                设置
+            </button>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <div class="bg-white shadow-md p-4 flex justify-between items-center">
+                <h1 id="currentTopic" class="text-2xl font-bold">AI 对话助手</h1>
+                <div class="flex items-center">
+                    <label for="modelSelect" class="mr-2">模型:</label>
+                    <select id="modelSelect" class="border rounded p-2">
+                        <option value="gpt-4o">GPT-4o</option>
+                        <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</option>
+                        <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="chatContainer" class="flex-1 overflow-y-auto p-4 scrollbar-hide">
+                <!-- 消息将在这里动态添加 -->
+            </div>
+
+            <div class="bg-white p-4 shadow-md">
+                <div class="flex">
+                    <textarea id="userInput" class="flex-grow border rounded-l p-2 resize-none" rows="2" placeholder="输入您的消息..."></textarea>
+                    <button id="sendBtn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-r">发送</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置模态框 -->
+    <div id="settingsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
+        <div class="bg-white p-6 rounded-lg">
+            <h2 class="text-2xl font-bold mb-4">设置</h2>
+            <div class="mb-4">
+                <label for="apiKey" class="block mb-2">API Key:</label>
+                <input type="password" id="apiKey" class="w-full border rounded p-2">
+            </div>
+            <div class="mb-4">
+                <label for="temperature" class="block mb-2">Temperature (0-1):</label>
+                <input type="number" id="temperature" min="0" max="1" step="0.1" value="0.7" class="w-full border rounded p-2">
+            </div>
+            <button id="saveSettingsBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">保存</button>
+            <button id="closeSettingsBtn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded ml-2">关闭</button>
+        </div>
+    </div>
+
+    <!-- 新建主题模态框 -->
+    <div id="newTopicModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
+        <div class="bg-white p-6 rounded-lg">
+            <h2 class="text-2xl font-bold mb-4">新建主题</h2>
+            <div class="mb-4">
+                <label for="topicName" class="block mb-2">主题名称:</label>
+                <input type="text" id="topicName" class="w-full border rounded p-2">
+            </div>
+            <button id="createTopicBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">创建</button>
+            <button id="closeNewTopicBtn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded ml-2">取消</button>
+        </div>
+    </div>
+
+    <script>
+        const apiUrl = 'https://opus.gptuu.com/v1/chat/completions';
+        let apiKey = localStorage.getItem('apiKey') || '';
+        let temperature = parseFloat(localStorage.getItem('temperature')) || 0.7;
+        let currentTopic = null;
+        let topics = JSON.parse(localStorage.getItem('topics')) || [];
+
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsModal = document.getElementById('settingsModal');
+        const apiKeyInput = document.getElementById('apiKey');
+        const temperatureInput = document.getElementById('temperature');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const modelSelect = document.getElementById('modelSelect');
+        const sidebar = document.getElementById('sidebar');
+        const topicList = document.getElementById('topicList');
+        const newTopicBtn = document.getElementById('newTopicBtn');
+        const newTopicModal = document.getElementById('newTopicModal');
+        const topicNameInput = document.getElementById('topicName');
+        const createTopicBtn = document.getElementById('createTopicBtn');
+        const closeNewTopicBtn = document.getElementById('closeNewTopicBtn');
+        const currentTopicElement = document.getElementById('currentTopic');
+
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('mb-4', 'message', isUser ? 'ml-auto' : 'mr-auto');
+            messageDiv.innerHTML = `
+                <div class="rounded-lg p-3 ${isUser ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">
+                    ${marked.parse(content)}
+                </div>
+            `;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            if (currentTopic) {
+                currentTopic.messages.push({ role: isUser ? 'user' : 'assistant', content });
+                saveTopic(currentTopic);
+            }
+        }
+
+        function addTypingIndicator() {
+            const indicatorDiv = document.createElement('div');
+            indicatorDiv.classList.add('mb-4', 'message', 'mr-auto', 'typing-indicator');
+            indicatorDiv.innerHTML = `
+                <div class="rounded-lg p-3 bg-gray-100 text-gray-800">
+                    AI正在思考中
+                </div>
+            `;
+            chatContainer.appendChild(indicatorDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return indicatorDiv;
+        }
+
+async function sendMessage() {
+    const message = userInput.value.trim();
+    if (!message) return;
+
+    // 使用新的 addMessage 函数添加用户消息
+    addMessage(message, true);
+    userInput.value = '';
+
+    const typingIndicator = addTypingIndicator();
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: modelSelect.value,
+                messages: currentTopic.messages,
+                temperature: temperature,
+                stream: true
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aiMessage = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            const parsedLines = lines
+                .map(line => line.replace(/^data: /, '').trim())
+                .filter(line => line !== '' && line !== '[DONE]')
+                .map(line => {
+                    try {
+                        return JSON.parse(line);
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e);
+                        return null;
+                    }
+                })
+                .filter(line => line !== null);
+
+            for (const parsedLine of parsedLines) {
+                const { choices } = parsedLine;
+                if (choices && choices.length > 0) {
+                    const { delta } = choices[0];
+                    const { content } = delta;
+                    if (content) {
+                        aiMessage += content;
+                        typingIndicator.innerHTML = `
+                            <div class="rounded-lg p-3 bg-gray-100 text-gray-800">
+                                ${marked.parse(aiMessage)}
+                            </div>
+                        `;
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
+                }
+            }
+        }
+
+        typingIndicator.remove();
+        // 使用新的 addMessage 函数添加AI的回复
+        addMessage(aiMessage);
+    } catch (error) {
+        console.error('Error:', error);
+        typingIndicator.remove();
+        // 使用新的 addMessage 函数添加错误消息
+        addMessage(`抱歉，发生了错误：${error.message}`);
+    }
+}
+
+        function createTopic(name) {
+            const topic = {
+                id: Date.now(),
+                name: name,
+                messages: []
+            };
+            topics.push(topic);
+            saveTopic(topic);
+            renderTopicList();
+            switchTopic(topic);
+        }
+
+        function saveTopic(topic) {
+            const index = topics.findIndex(t => t.id === topic.id);
+            if (index !== -1) {
+                topics[index] = topic;
+            } else {
+                topics.push(topic);
+            }
+            localStorage.setItem('topics', JSON.stringify(topics));
+        }
+
+function switchTopic(topic) {
+    currentTopic = topic;
+    chatContainer.innerHTML = '';
+    if (topic) {
+        currentTopicElement.textContent = topic.name;
+        topic.messages.forEach(msg => addMessageToUI(msg.content, msg.role === 'user'));
+    } else {
+        currentTopicElement.textContent = 'AI 对话助手';
+    }
+    renderTopicList();
+}
+
+        function renderTopicList() {
+            topicList.innerHTML = '';
+            topics.forEach(topic => {
+                const topicDiv = document.createElement('div');
+                topicDiv.classList.add('flex', 'justify-between', 'items-center', 'mb-2', 'p-2', 'rounded', 'cursor-pointer', 'hover:bg-gray-600', 'transition-colors', 'duration-200');
+                if (currentTopic && currentTopic.id === topic.id) {
+                    topicDiv.classList.add('topic-active');
+                } else {
+                    topicDiv.classList.add('bg-gray-700');
+                }
+                topicDiv.innerHTML = `
+                    <span class="flex-grow">${topic.name}</span>
+                    <button class="delete-topic-btn text-red-500 hover:text-red-700 ml-2">×</button>
+                `;
+                topicDiv.addEventListener('click', () => switchTopic(topic));
+                topicDiv.querySelector('.delete-topic-btn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteTopic(topic.id);
+                });
+                topicList.appendChild(topicDiv);
+            });
+        }
+
+
+        function deleteTopic(topicId) {
+            topics = topics.filter(t => t.id !== topicId);
+            localStorage.setItem('topics', JSON.stringify(topics));
+            if (currentTopic && currentTopic.id === topicId) {
+                switchTopic(topics.length > 0 ? topics[0] : null);
+            } else {
+                renderTopicList();
+            }
+        }
+
+function addMessageToUI(content, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('mb-4', 'message', isUser ? 'ml-auto' : 'mr-auto');
+    messageDiv.innerHTML = `
+        <div class="rounded-lg p-3 ${isUser ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">
+            ${marked.parse(content)}
+        </div>
+    `;
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function addMessage(content, isUser = false) {
+    addMessageToUI(content, isUser);
+    if (currentTopic) {
+        currentTopic.messages.push({ role: isUser ? 'user' : 'assistant', content });
+        saveTopic(currentTopic);
+    }
+}
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        settingsBtn.addEventListener('click', () => {
+            apiKeyInput.value = apiKey;
+            temperatureInput.value = temperature;
+            settingsModal.classList.remove('hidden');
+            settingsModal.classList.add('flex');
+        });
+
+        saveSettingsBtn.addEventListener('click', () => {
+            apiKey = apiKeyInput.value;
+            temperature = parseFloat(temperatureInput.value);
+            localStorage.setItem('apiKey', apiKey);
+            localStorage.setItem('temperature', temperature);
+            settingsModal.classList.add('hidden');
+            settingsModal.classList.remove('flex');
+        });
+
+        closeSettingsBtn.addEventListener('click', () => {
+            settingsModal.classList.add('hidden');
+            settingsModal.classList.remove('flex');
+        });
+
+        newTopicBtn.addEventListener('click', () => {
+            newTopicModal.classList.remove('hidden');
+            newTopicModal.classList.add('flex');
+        });
+
+        createTopicBtn.addEventListener('click', () => {
+            const topicName = topicNameInput.value.trim();
+            if (topicName) {
+                createTopic(topicName);
+                topicNameInput.value = '';
+                newTopicModal.classList.add('hidden');
+                newTopicModal.classList.remove('flex');
+            }
+        });
+
+        closeNewTopicBtn.addEventListener('click', () => {
+            topicNameInput.value = '';
+            newTopicModal.classList.add('hidden');
+            newTopicModal.classList.remove('flex');
+        });
+
+        // 初始化应用
+        function initializeApp() {
+            topics = JSON.parse(localStorage.getItem('topics')) || [];
+            renderTopicList();
+            if (topics.length > 0) {
+                switchTopic(topics[0]);
+            }
+        }
+
+// 在页面加载完成后初始化应用
+if (!window.appInitialized) {
+    window.addEventListener('load', initializeApp);
+    window.appInitialized = true;
+}
+    </script>
+</body>
+</html>
