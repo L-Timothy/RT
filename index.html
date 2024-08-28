@@ -76,21 +76,39 @@
             height: 20px;
         }
         @media (max-width: 768px) {
-            #sidebar {
-                position: fixed;
-                left: -100%;
-                top: 0;
-                bottom: 0;
-                width: 80%;
-                max-width: 300px;
-                z-index: 1000;
-                transition: left 0.3s ease-in-out;
-            }
+    #sidebar {
+        position: fixed;
+        left: -100%;
+        top: 0;
+        bottom: 0;
+        width: 35%; /* 改为35% */
+        min-width: 200px; /* 设置最小宽度，确保在非常窄的屏幕上仍然可用 */
+        max-width: 300px; /* 保留最大宽度限制 */
+        z-index: 50;
+        transition: left 0.3s ease-in-out;
+    }
             #sidebar.open {
                 left: 0;
             }
             #mainContent {
                 width: 100%;
+            }
+
+    #sidebar h2 {
+        font-size: 1.2rem; /* 减小标题字体大小 */
+    }
+
+    #sidebar button, #topicList div {
+        font-size: 0.9rem; /* 减小按钮和主题列表项的字体大小 */
+        padding: 0.5rem; /* 减小内边距 */
+    }
+#settingsModal, #newTopicModal {
+    z-index: 100; /* 确保比侧边栏的z-index高 */
+}
+            #settingsModal .bg-white, #newTopicModal .bg-white {
+                width: 90%;
+                max-width: 350px;
+                margin: 10% auto;
             }
             .bg-white.shadow-md.p-4 {
                 padding: 0.5rem;
@@ -505,6 +523,33 @@ function switchTopic(topic) {
             }
         }
 
+function setupModalListeners(modalId, openBtnId, closeBtnId) {
+    const modal = document.getElementById(modalId);
+    const openBtn = document.getElementById(openBtnId);
+    const closeBtn = document.getElementById(closeBtnId);
+
+    openBtn.addEventListener('click', () => {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    });
+
+    closeBtn.addEventListener('click', closeModal);
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+setupModalListeners('settingsModal', 'settingsBtn', 'closeSettingsBtn');
+setupModalListeners('newTopicModal', 'newTopicBtn', 'closeNewTopicBtn');
+
         function initializeApp() {
             if (appInitialized) return;
             
@@ -570,13 +615,19 @@ function switchTopic(topic) {
 menuToggle.addEventListener('click', (e) => {
     e.stopPropagation();
     sidebar.classList.toggle('open');
+    document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
 });
 
-        mainContent.addEventListener('click', () => {
-            if (sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
-            }
-        });
+mainContent.addEventListener('click', () => {
+    if (sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+});
+
+sidebar.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
 
         modelSelect.addEventListener('change', function() {
             if (currentTopic) {
@@ -585,9 +636,6 @@ menuToggle.addEventListener('click', (e) => {
             }
         });
 
-sidebar.addEventListener('click', (e) => {
-    e.stopPropagation();
-});
 
         // 在页面加载完成后初始化应用
         window.addEventListener('load', initializeApp);
