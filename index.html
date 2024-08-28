@@ -4,64 +4,187 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 对话助手</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.3.4/axios.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <script>
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            headerIds: false,
+            headerPrefix: false,
+            mangle: false,
+            sanitize: false,
+            smartLists: true,
+            smartypants: true,
+            xhtml: false
+        });
+    </script>
+
     <style>
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        .chat-container {
-            height: calc(100vh - 160px);
-        }
-        .message {
-            max-width: 90%;
-            word-wrap: break-word;
-        }
-        .typing-indicator::after {
-            content: '...';
-            animation: typing 1s infinite;
-        }
-        @keyframes typing {
-            0% { content: ''; }
-            25% { content: '.'; }
-            50% { content: '..'; }
-            75% { content: '...'; }
-            100% { content: ''; }
-        }
-        .topic-active {
-            background-color: #4a5568;
-            border-left: 4px solid #63b3ed;
-        }
+/* 基础样式 */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.topic-active {
+    background-color: #4a5568;
+}
+
+/* 消息内容样式 */
+.message-content p {
+    margin-bottom: 1em;
+}
+
+.message-content p:last-child {
+    margin-bottom: 0;
+}
+
+.message-content ul, .message-content ol {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+    padding-left: 1.5em;
+}
+
+.message-content li {
+    margin-bottom: 0.25em;
+}
+
+.message-content li:last-child {
+    margin-bottom: 0;
+}
+
+/* AI消息框样式 */
+.ai-message {
+    background-color: #f7f7f7;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+    padding-bottom: 48px; /* 增加底部内边距，为图标留出足够空间 */
+    margin-bottom: 16px;
+    position: relative;
+    border: 1px solid #e0e0e0;
+}
+.ai-message .message-content {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    color: #333;
+}
+
+/* 消息操作按钮样式 */
+.message-actions {
+    position: absolute;
+    bottom: 12px; /* 调整到距离底部12px */
+    right: 16px; /* 与消息内容右对齐 */
+    display: flex;
+    align-items: center;
+    gap: 12px; /* 增加图标之间的间距 */
+}
+.icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: opacity 0.3s ease;
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-button:hover {
+    opacity: 1;
+}
+.icon-button svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #sidebar {
+        position: fixed;
+        left: -100%;
+        top: 0;
+        bottom: 0;
+        width: 80%;
+        z-index: 1000;
+        transition: left 0.3s ease-in-out;
+    }
+    #sidebar.open {
+        left: 0;
+    }
+    .flex-1.flex.flex-col.overflow-hidden {
+        width: 100%;
+    }
+    #chatContainer {
+        height: calc(100vh - 120px);
+    }
+    .message {
+        max-width: 100%; /* 在移动端使消息占满宽度 */
+    }
+    #userInput {
+        width: 100%;
+    }
+    #sendBtn {
+        width: 100%;
+        margin-top: 10px;
+    }
+    #settingsModal .bg-white,
+    #newTopicModal .bg-white {
+        width: 90%;
+        max-width: none;
+    }
+    body {
+        font-size: 14px;
+    }
+    h1 {
+        font-size: 1.5rem;
+    }
+    h2 {
+        font-size: 1.25rem;
+    }
+    
+    /* 移动端特定的消息样式 */
+    .ai-message {
+        padding: 12px;
+        padding-bottom: 44px; /* 调整移动端的底部内边距 */
+        margin-left: 5px;
+        margin-right: 5px;
+    }
+    .message-actions {
+        bottom: 8px; /* 调整移动端的底部距离 */
+        right: 12px;
+        gap: 10px; /* 减小移动端图标间距 */
+    }
+    .icon-button svg {
+        width: 18px; /* 稍微减小移动端图标大小 */
+        height: 18px;
+    }
+}
     </style>
 </head>
-<body class="bg-gray-100 h-screen flex flex-col">
-    <div class="flex-1 flex overflow-hidden">
-        <!-- 侧边栏 -->
+<body class="bg-gray-100">
+    <div class="flex-1 flex overflow-hidden h-screen">
         <div id="sidebar" class="w-64 bg-gray-800 text-white p-4 flex flex-col transition-all duration-300 ease-in-out">
-            <h2 class="text-2xl font-bold mb-4">主题列表</h2>
-            <button id="newTopicBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4">
-                新建主题
-            </button>
-            <div id="topicList" class="flex-1 overflow-y-auto scrollbar-hide">
-                <!-- 主题列表将在这里动态添加 -->
-            </div>
-            <button id="settingsBtn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded mt-4">
-                设置
-            </button>
+            <h2 id="主题列表" class="text-2xl font-bold mb-4">主题列表</h2>
+            <button id="newTopicBtn" class="bg-blue-500 text-white px-4 py-2 rounded mb-4 hover:bg-blue-600 transition-colors duration-200">新建主题</button>
+            <div id="topicList" class="flex-1 overflow-y-auto scrollbar-hide"></div>
+            <button id="settingsBtn" class="bg-gray-600 text-white px-4 py-2 rounded mt-4 hover:bg-gray-700 transition-colors duration-200">设置</button>
         </div>
 
-        <!-- 主内容区 -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <div class="bg-white shadow-md p-4 flex justify-between items-center">
                 <h1 id="currentTopic" class="text-2xl font-bold">AI 对话助手</h1>
+                <button id="menuToggle" class="md:hidden p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
                 <div class="flex items-center">
                     <label for="modelSelect" class="mr-2">模型:</label>
-                    <select id="modelSelect" class="border rounded p-2">
+                    <select id="modelSelect" class="border rounded p-1">
                         <option value="gpt-4o">GPT-4o</option>
                         <option value="claude-3-5-sonnet-20240620">Claude 3.5 Sonnet</option>
                         <option value="claude-3-opus-20240229">Claude 3 Opus</option>
@@ -69,114 +192,219 @@
                 </div>
             </div>
 
-            <div id="chatContainer" class="flex-1 overflow-y-auto p-4 scrollbar-hide">
-                <!-- 消息将在这里动态添加 -->
-            </div>
+            <div id="chatContainer" class="flex-1 overflow-y-auto p-4 scrollbar-hide"></div>
 
             <div class="bg-white p-4 shadow-md">
-                <div class="flex">
-                    <textarea id="userInput" class="flex-grow border rounded-l p-2 resize-none" rows="2" placeholder="输入您的消息..."></textarea>
-                    <button id="sendBtn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-r">发送</button>
+                <div class="flex flex-col md:flex-row">
+                    <textarea id="userInput" class="flex-1 border rounded p-2 mb-2 md:mb-0 md:mr-2" rows="3" placeholder="输入消息..."></textarea>
+                    <button id="sendBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors duration-200">发送</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 设置模态框 -->
     <div id="settingsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
         <div class="bg-white p-6 rounded-lg">
-            <h2 class="text-2xl font-bold mb-4">设置</h2>
+            <h2 id="设置" class="text-2xl font-bold mb-4">设置</h2>
             <div class="mb-4">
                 <label for="apiKey" class="block mb-2">API Key:</label>
-                <input type="password" id="apiKey" class="w-full border rounded p-2">
+                <input id="apiKey" type="password" class="w-full border rounded p-2">
             </div>
             <div class="mb-4">
                 <label for="temperature" class="block mb-2">Temperature (0-1):</label>
-                <input type="number" id="temperature" min="0" max="1" step="0.1" value="0.7" class="w-full border rounded p-2">
+                <input id="temperature" type="number" min="0" max="1" step="0.1" class="w-full border rounded p-2">
             </div>
-            <button id="saveSettingsBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">保存</button>
-            <button id="closeSettingsBtn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded ml-2">关闭</button>
+            <div class="flex justify-end">
+                <button id="saveSettingsBtn" class="bg-blue-500 text-white px-4 py-2 rounded mr-2 hover:bg-blue-600 transition-colors duration-200">保存</button>
+                <button id="closeSettingsBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition-colors duration-200">关闭</button>
+            </div>
         </div>
     </div>
 
-    <!-- 新建主题模态框 -->
     <div id="newTopicModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
         <div class="bg-white p-6 rounded-lg">
-            <h2 class="text-2xl font-bold mb-4">新建主题</h2>
+            <h2 id="新建主题" class="text-2xl font-bold mb-4">新建主题</h2>
             <div class="mb-4">
                 <label for="topicName" class="block mb-2">主题名称:</label>
-                <input type="text" id="topicName" class="w-full border rounded p-2">
+                <input id="topicName" type="text" class="w-full border rounded p-2">
             </div>
-            <button id="createTopicBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">创建</button>
-            <button id="closeNewTopicBtn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded ml-2">取消</button>
+            <div class="flex justify-end">
+                <button id="createTopicBtn" class="bg-blue-500 text-white px-4 py-2 rounded mr-2 hover:bg-blue-600 transition-colors duration-200">创建</button>
+                <button id="closeNewTopicBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition-colors duration-200">取消</button>
+            </div>
         </div>
     </div>
 
     <script>
-        const apiUrl = 'https://opus.gptuu.com/v1/chat/completions';
-        let apiKey = localStorage.getItem('apiKey') || '';
-        let temperature = parseFloat(localStorage.getItem('temperature')) || 0.7;
-        let currentTopic = null;
-        let topics = JSON.parse(localStorage.getItem('topics')) || [];
+const apiUrl = 'https://opus.gptuu.com/v1/chat/completions';
+let apiKey = localStorage.getItem('apiKey') || '';
+let temperature = parseFloat(localStorage.getItem('temperature')) || 0.7;
+let currentTopic = null;
+let topics = JSON.parse(localStorage.getItem('topics')) || [];
+let appInitialized = false;
 
-        const chatContainer = document.getElementById('chatContainer');
-        const userInput = document.getElementById('userInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const settingsModal = document.getElementById('settingsModal');
-        const apiKeyInput = document.getElementById('apiKey');
-        const temperatureInput = document.getElementById('temperature');
-        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-        const modelSelect = document.getElementById('modelSelect');
-        const sidebar = document.getElementById('sidebar');
-        const topicList = document.getElementById('topicList');
-        const newTopicBtn = document.getElementById('newTopicBtn');
-        const newTopicModal = document.getElementById('newTopicModal');
-        const topicNameInput = document.getElementById('topicName');
-        const createTopicBtn = document.getElementById('createTopicBtn');
-        const closeNewTopicBtn = document.getElementById('closeNewTopicBtn');
-        const currentTopicElement = document.getElementById('currentTopic');
+const chatContainer = document.getElementById('chatContainer');
+const userInput = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const apiKeyInput = document.getElementById('apiKey');
+const temperatureInput = document.getElementById('temperature');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const modelSelect = document.getElementById('modelSelect');
+const sidebar = document.getElementById('sidebar');
+const topicList = document.getElementById('topicList');
+const newTopicBtn = document.getElementById('newTopicBtn');
+const newTopicModal = document.getElementById('newTopicModal');
+const topicNameInput = document.getElementById('topicName');
+const createTopicBtn = document.getElementById('createTopicBtn');
+const closeNewTopicBtn = document.getElementById('closeNewTopicBtn');
+const currentTopicElement = document.getElementById('currentTopic');
+const menuToggle = document.getElementById('menuToggle');
 
-        function addMessage(content, isUser = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.classList.add('mb-4', 'message', isUser ? 'ml-auto' : 'mr-auto');
-            messageDiv.innerHTML = `
-                <div class="rounded-lg p-3 ${isUser ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">
-                    ${marked.parse(content)}
-                </div>
-            `;
-            chatContainer.appendChild(messageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-
-            if (currentTopic) {
-                currentTopic.messages.push({ role: isUser ? 'user' : 'assistant', content });
-                saveTopic(currentTopic);
+function preprocessAIResponse(content) {
+    // 将连续的换行符替换为特殊标记
+    content = content.replace(/\n{2,}/g, '\n<paragraph-break>\n');
+    
+    // 将无序列表项转换为Markdown格式
+    content = content.replace(/^(\s*)(\d+\.\s|\-\s|\•\s)/gm, '$1- ');
+    
+    // 为每个列表项添加粗体标题（如果没有的话）
+    content = content.replace(/^(\s*)-\s(.+)$/gm, (match, space, text) => {
+        if (!/^\*\*.*\*\*/.test(text)) {
+            const colonIndex = text.indexOf(':');
+            if (colonIndex !== -1) {
+                const title = text.slice(0, colonIndex).trim();
+                const rest = text.slice(colonIndex + 1).trim();
+                return `${space}- **${title}**: ${rest}`;
             }
         }
+        return match;
+    });
+    
+    // 将特殊标记替换回双换行符
+    content = content.replace(/<paragraph-break>/g, '\n\n');
+    
+    return content;
+}
 
-        function addTypingIndicator() {
-            const indicatorDiv = document.createElement('div');
-            indicatorDiv.classList.add('mb-4', 'message', 'mr-auto', 'typing-indicator');
-            indicatorDiv.innerHTML = `
-                <div class="rounded-lg p-3 bg-gray-100 text-gray-800">
-                    AI正在思考中
+function addMessage(content, isUser = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('mb-4', 'message', isUser ? 'ml-auto' : 'mr-auto');
+    
+    if (isUser) {
+        messageDiv.innerHTML = `
+            <div class="rounded-lg p-3 bg-blue-100 text-blue-800">
+                <div class="message-content">${marked.parse(content, { breaks: true })}</div>
+            </div>
+        `;
+    } else {
+        const messageId = 'msg-' + Date.now();
+        const processedContent = preprocessAIResponse(content);
+        messageDiv.innerHTML = `
+            <div class="ai-message">
+                <div class="message-content" id="${messageId}">${marked.parse(processedContent, { breaks: true })}</div>
+                <div class="message-actions">
+                    <button class="icon-button regenerate-button" data-message-id="${messageId}" title="重新生成">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                    <button class="icon-button copy-button" data-message-id="${messageId}" title="复制">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                    </button>
                 </div>
+            </div>
+        `;
+        
+        addCopyButtonListener(messageDiv.querySelector('.copy-button'));
+        addRegenerateButtonListener(messageDiv.querySelector('.regenerate-button'));
+    }
+    
+    chatContainer.appendChild(messageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    if (currentTopic) {
+        currentTopic.messages.push({ role: isUser ? 'user' : 'assistant', content: isUser ? content : processedContent });
+        saveTopic(currentTopic);
+    }
+}
+
+function addCopyButtonListener(button) {
+    button.addEventListener('click', function() {
+        const messageId = this.getAttribute('data-message-id');
+        const messageToCopy = document.getElementById(messageId);
+        const range = document.createRange();
+        range.selectNode(messageToCopy);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+        
+        this.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+        `;
+        setTimeout(() => {
+            this.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
             `;
-            chatContainer.appendChild(indicatorDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-            return indicatorDiv;
+        }, 2000);
+    });
+}
+
+function addRegenerateButtonListener(button) {
+    button.addEventListener('click', function() {
+        const messageId = this.getAttribute('data-message-id');
+        const messageElement = document.getElementById(messageId);
+        
+        const lastUserMessage = currentTopic.messages.filter(msg => msg.role === 'user').pop();
+        
+        if (lastUserMessage) {
+            messageElement.closest('.ai-message').remove();
+            currentTopic.messages.pop();
+            sendMessage(lastUserMessage.content);
         }
+    });
+}
 
-async function sendMessage() {
-    const message = userInput.value.trim();
-    if (!message) return;
+async function sendMessage(message = null) {
+    const userMessage = message || userInput.value.trim();
+    if (!userMessage) return;
 
-    // 使用新的 addMessage 函数添加用户消息
-    addMessage(message, true);
-    userInput.value = '';
+    if (!message) {
+        addMessage(userMessage, true);
+        userInput.value = '';
+    }
 
-    const typingIndicator = addTypingIndicator();
+    const messageId = 'msg-' + Date.now();
+    const aiMessageDiv = document.createElement('div');
+    aiMessageDiv.classList.add('mb-4', 'message', 'mr-auto');
+    aiMessageDiv.innerHTML = `
+        <div class="ai-message">
+            <div class="message-content" id="${messageId}">AI正在思考中...</div>
+            <div class="message-actions">
+                <button class="icon-button regenerate-button" data-message-id="${messageId}" title="重新生成">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+                <button class="icon-button copy-button" data-message-id="${messageId}" title="复制">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    chatContainer.appendChild(aiMessageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
 
     try {
         const response = await fetch(apiUrl, {
@@ -227,180 +455,174 @@ async function sendMessage() {
                     const { content } = delta;
                     if (content) {
                         aiMessage += content;
-                        typingIndicator.innerHTML = `
-                            <div class="rounded-lg p-3 bg-gray-100 text-gray-800">
-                                ${marked.parse(aiMessage)}
-                            </div>
-                        `;
-                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                        document.getElementById(messageId).innerHTML = marked.parse(preprocessAIResponse(aiMessage));
                     }
                 }
             }
         }
 
-        typingIndicator.remove();
-        // 使用新的 addMessage 函数添加AI的回复
-        addMessage(aiMessage);
+        if (currentTopic) {
+            currentTopic.messages.push({ role: 'assistant', content: aiMessage });
+            currentTopic.model = modelSelect.value;
+            saveTopic(currentTopic);
+        }
+
+        addCopyButtonListener(aiMessageDiv.querySelector('.copy-button'));
+        addRegenerateButtonListener(aiMessageDiv.querySelector('.regenerate-button'));
     } catch (error) {
         console.error('Error:', error);
-        typingIndicator.remove();
-        // 使用新的 addMessage 函数添加错误消息
-        addMessage(`抱歉，发生了错误：${error.message}`);
+        document.getElementById(messageId).innerHTML = `抱歉，发生了错误：${error.message}`;
     }
 }
 
-        function createTopic(name) {
-            const topic = {
-                id: Date.now(),
-                name: name,
-                messages: []
-            };
-            topics.push(topic);
-            saveTopic(topic);
-            renderTopicList();
-            switchTopic(topic);
-        }
+function createTopic(name) {
+    const topic = {
+        id: Date.now(),
+        name: name,
+        messages: [],
+        model: modelSelect.value
+    };
+    topics.push(topic);
+    saveTopic(topic);
+    renderTopicList();
+    switchTopic(topic);
+}
 
-        function saveTopic(topic) {
-            const index = topics.findIndex(t => t.id === topic.id);
-            if (index !== -1) {
-                topics[index] = topic;
-            } else {
-                topics.push(topic);
-            }
-            localStorage.setItem('topics', JSON.stringify(topics));
-        }
+function saveTopic(topic) {
+    const index = topics.findIndex(t => t.id === topic.id);
+    if (index !== -1) {
+        topics[index] = {...topic};
+    } else {
+        topics.push({...topic});
+    }
+    localStorage.setItem('topics', JSON.stringify(topics));
+}
 
 function switchTopic(topic) {
     currentTopic = topic;
     chatContainer.innerHTML = '';
     if (topic) {
         currentTopicElement.textContent = topic.name;
-        topic.messages.forEach(msg => addMessageToUI(msg.content, msg.role === 'user'));
+        topic.messages.forEach(msg => {
+            addMessage(msg.content, msg.role === 'user');
+        });
+        if (topic.model) {
+            modelSelect.value = topic.model;
+        }
     } else {
         currentTopicElement.textContent = 'AI 对话助手';
     }
     renderTopicList();
 }
 
-        function renderTopicList() {
-            topicList.innerHTML = '';
-            topics.forEach(topic => {
-                const topicDiv = document.createElement('div');
-                topicDiv.classList.add('flex', 'justify-between', 'items-center', 'mb-2', 'p-2', 'rounded', 'cursor-pointer', 'hover:bg-gray-600', 'transition-colors', 'duration-200');
-                if (currentTopic && currentTopic.id === topic.id) {
-                    topicDiv.classList.add('topic-active');
-                } else {
-                    topicDiv.classList.add('bg-gray-700');
-                }
-                topicDiv.innerHTML = `
-                    <span class="flex-grow">${topic.name}</span>
-                    <button class="delete-topic-btn text-red-500 hover:text-red-700 ml-2">×</button>
-                `;
-                topicDiv.addEventListener('click', () => switchTopic(topic));
-                topicDiv.querySelector('.delete-topic-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteTopic(topic.id);
-                });
-                topicList.appendChild(topicDiv);
-            });
+function renderTopicList() {
+    topicList.innerHTML = '';
+    topics.forEach(topic => {
+        const topicDiv = document.createElement('div');
+        topicDiv.classList.add('flex', 'justify-between', 'items-center', 'mb-2', 'p-2', 'rounded', 'cursor-pointer', 'hover:bg-gray-600', 'transition-colors', 'duration-200');
+        if (currentTopic && currentTopic.id === topic.id) {
+            topicDiv.classList.add('topic-active');
+        } else {
+            topicDiv.classList.add('bg-gray-700');
         }
-
-
-        function deleteTopic(topicId) {
-            topics = topics.filter(t => t.id !== topicId);
-            localStorage.setItem('topics', JSON.stringify(topics));
-            if (currentTopic && currentTopic.id === topicId) {
-                switchTopic(topics.length > 0 ? topics[0] : null);
-            } else {
-                renderTopicList();
-            }
-        }
-
-function addMessageToUI(content, isUser = false) {
-    const messageDiv = document.createElement('div');
-    messageDiv.classList.add('mb-4', 'message', isUser ? 'ml-auto' : 'mr-auto');
-    messageDiv.innerHTML = `
-        <div class="rounded-lg p-3 ${isUser ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}">
-            ${marked.parse(content)}
-        </div>
-    `;
-    chatContainer.appendChild(messageDiv);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+        topicDiv.innerHTML = `
+            <span class="flex-grow">${topic.name}</span>
+            <button class="delete-topic-btn text-red-500 hover:text-red-700 ml-2">×</button>
+        `;
+        topicDiv.addEventListener('click', () => switchTopic(topic));
+        topicDiv.querySelector('.delete-topic-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteTopic(topic.id);
+        });
+        topicList.appendChild(topicDiv);
+    });
 }
 
-function addMessage(content, isUser = false) {
-    addMessageToUI(content, isUser);
-    if (currentTopic) {
-        currentTopic.messages.push({ role: isUser ? 'user' : 'assistant', content });
-        saveTopic(currentTopic);
+function deleteTopic(topicId) {
+    topics = topics.filter(t => t.id !== topicId);
+    localStorage.setItem('topics', JSON.stringify(topics));
+    if (currentTopic && currentTopic.id === topicId) {
+        switchTopic(topics.length > 0 ? topics[0] : null);
+    } else {
+        renderTopicList();
     }
 }
 
-        sendBtn.addEventListener('click', sendMessage);
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+function initializeApp() {
+    if (appInitialized) return;
+    
+    topics = JSON.parse(localStorage.getItem('topics')) || [];
+    renderTopicList();
+    if (topics.length > 0) {
+        switchTopic(topics[0]);
+    }
+    
+    appInitialized = true;
+}
 
-        settingsBtn.addEventListener('click', () => {
-            apiKeyInput.value = apiKey;
-            temperatureInput.value = temperature;
-            settingsModal.classList.remove('hidden');
-            settingsModal.classList.add('flex');
-        });
+sendBtn.addEventListener('click', () => sendMessage());
+userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
 
-        saveSettingsBtn.addEventListener('click', () => {
-            apiKey = apiKeyInput.value;
-            temperature = parseFloat(temperatureInput.value);
-            localStorage.setItem('apiKey', apiKey);
-            localStorage.setItem('temperature', temperature);
-            settingsModal.classList.add('hidden');
-            settingsModal.classList.remove('flex');
-        });
+settingsBtn.addEventListener('click', () => {
+    apiKeyInput.value = apiKey;
+    temperatureInput.value = temperature;
+    settingsModal.classList.remove('hidden');
+    settingsModal.classList.add('flex');
+});
 
-        closeSettingsBtn.addEventListener('click', () => {
-            settingsModal.classList.add('hidden');
-            settingsModal.classList.remove('flex');
-        });
+saveSettingsBtn.addEventListener('click', () => {
+    apiKey = apiKeyInput.value;
+    temperature = parseFloat(temperatureInput.value);
+    localStorage.setItem('apiKey', apiKey);
+    localStorage.setItem('temperature', temperature);
+    settingsModal.classList.add('hidden');
+    settingsModal.classList.remove('flex');
+});
 
-        newTopicBtn.addEventListener('click', () => {
-            newTopicModal.classList.remove('hidden');
-            newTopicModal.classList.add('flex');
-        });
+closeSettingsBtn.addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+    settingsModal.classList.remove('flex');
+});
 
-        createTopicBtn.addEventListener('click', () => {
-            const topicName = topicNameInput.value.trim();
-            if (topicName) {
-                createTopic(topicName);
-                topicNameInput.value = '';
-                newTopicModal.classList.add('hidden');
-                newTopicModal.classList.remove('flex');
-            }
-        });
+newTopicBtn.addEventListener('click', () => {
+    newTopicModal.classList.remove('hidden');
+    newTopicModal.classList.add('flex');
+});
 
-        closeNewTopicBtn.addEventListener('click', () => {
-            topicNameInput.value = '';
-            newTopicModal.classList.add('hidden');
-            newTopicModal.classList.remove('flex');
-        });
+createTopicBtn.addEventListener('click', () => {
+    const topicName = topicNameInput.value.trim();
+    if (topicName) {
+        createTopic(topicName);
+        topicNameInput.value = '';
+        newTopicModal.classList.add('hidden');
+        newTopicModal.classList.remove('flex');
+    }
+});
 
-        // 初始化应用
-        function initializeApp() {
-            topics = JSON.parse(localStorage.getItem('topics')) || [];
-            renderTopicList();
-            if (topics.length > 0) {
-                switchTopic(topics[0]);
-            }
-        }
+closeNewTopicBtn.addEventListener('click', () => {
+    topicNameInput.value = '';
+    newTopicModal.classList.add('hidden');
+    newTopicModal.classList.remove('flex');
+});
+
+menuToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('open');
+});
+
+modelSelect.addEventListener('change', function() {
+    if (currentTopic) {
+        currentTopic.model = this.value;
+        saveTopic(currentTopic);
+    }
+});
 
 // 在页面加载完成后初始化应用
-if (!window.appInitialized) {
-    window.addEventListener('load', initializeApp);
-    window.appInitialized = true;
-}
+window.addEventListener('load', initializeApp);
     </script>
 </body>
 </html>
