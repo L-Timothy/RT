@@ -141,11 +141,11 @@
         <div id="mainContent" class="flex-1 flex flex-col overflow-hidden">
             <div class="bg-white shadow-md p-4 flex justify-between items-center">
                 <h1 id="currentTopic" class="text-2xl font-bold">AI 对话助手</h1>
-                <button id="menuToggle" class="md:hidden p-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                </button>
+<button id="menuToggle" class="md:hidden p-2">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+</button>
                 <div class="flex items-center">
                     <label for="modelSelect" class="mr-2">模型:</label>
                     <select id="modelSelect" class="border rounded p-1">
@@ -567,9 +567,10 @@ function switchTopic(topic) {
             newTopicModal.classList.remove('flex');
         });
 
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-        });
+menuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    sidebar.classList.toggle('open');
+});
 
         mainContent.addEventListener('click', () => {
             if (sidebar.classList.contains('open')) {
@@ -583,6 +584,10 @@ function switchTopic(topic) {
                 saveTopic(currentTopic);
             }
         });
+
+sidebar.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
 
         // 在页面加载完成后初始化应用
         window.addEventListener('load', initializeApp);
