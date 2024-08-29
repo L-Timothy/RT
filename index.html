@@ -6,146 +6,195 @@
     <title>AI 对话助手</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
+<style>
+    /* 通用样式 */
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .topic-active {
+        background-color: #4a5568;
+    }
+
+    /* 消息内容样式 */
+    .message-content p {
+        margin-bottom: 1em;
+    }
+    .message-content p:last-child {
+        margin-bottom: 0;
+    }
+    .message-content ul, .message-content ol {
+        margin-top: 0.5em;
+        margin-bottom: 0.5em;
+        padding-left: 1.5em;
+    }
+    .message-content li {
+        margin-bottom: 0.25em;
+    }
+    .message-content li:last-child {
+        margin-bottom: 0;
+    }
+
+    /* AI 消息样式 */
+    .ai-message {
+        background-color: #f7f7f7;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 16px;
+        padding-bottom: 48px;
+        margin-bottom: 16px;
+        position: relative;
+        border: 1px solid #e0e0e0;
+    }
+    .ai-message .message-content {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+    }
+
+    /* 消息操作按钮样式 */
+    .message-actions {
+        position: absolute;
+        bottom: 12px;
+        right: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .icon-button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        transition: opacity 0.3s ease;
+        opacity: 0.6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .icon-button:hover {
+        opacity: 1;
+    }
+    .icon-button svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    /* 设置和新建主题模态框样式 */
+    #settingsModal, #newTopicModal {
+        z-index: 100;
+    }
+    #settingsModal .bg-white, #newTopicModal .bg-white {
+        width: 90%;
+        max-width: 500px;
+        margin: 5% auto;
+        padding: 2rem;
+        border-radius: 12px;
+    }
+    .modal-title {
+        font-size: 1.5rem;
+        font-weight: bold;
+        margin-bottom: 1.5rem;
+    }
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    .form-group input, .form-group select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+    }
+    .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+    }
+    .modal-buttons button {
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+    }
+
+    /* 响应式设计 */
+    @media (max-width: 768px) {
+        #sidebar {
+            position: fixed;
+            left: -100%;
+            top: 0;
+            bottom: 0;
+            width: 35%;
+            min-width: 200px;
+            max-width: 300px;
+            z-index: 50;
+            transition: left 0.3s ease-in-out;
         }
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        #sidebar.open {
+            left: 0;
         }
-        .topic-active {
-            background-color: #4a5568;
+        #mainContent {
+            width: 100%;
         }
-        .message-content p {
-            margin-bottom: 1em;
+        #sidebar h2 {
+            font-size: 1.2rem;
         }
-        .message-content p:last-child {
-            margin-bottom: 0;
+        #sidebar button, #topicList div {
+            font-size: 0.9rem;
+            padding: 0.5rem;
         }
-        .message-content ul, .message-content ol {
-            margin-top: 0.5em;
-            margin-bottom: 0.5em;
-            padding-left: 1.5em;
+        .bg-white.shadow-md.p-4 {
+            padding: 0.5rem;
         }
-        .message-content li {
-            margin-bottom: 0.25em;
+        #currentTopic {
+            font-size: 1.2rem;
         }
-        .message-content li:last-child {
-            margin-bottom: 0;
+        #modelSelect {
+            font-size: 0.9rem;
+        }
+        #chatContainer {
+            height: calc(100vh - 110px);
+        }
+        .message {
+            max-width: 90%;
         }
         .ai-message {
-            background-color: #f7f7f7;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 16px;
-            padding-bottom: 48px;
-            margin-bottom: 16px;
-            position: relative;
-            border: 1px solid #e0e0e0;
-        }
-        .ai-message .message-content {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
+            padding: 0.75rem;
+            padding-bottom: 2.5rem;
         }
         .message-actions {
-            position: absolute;
-            bottom: 12px;
-            right: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .icon-button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            transition: opacity 0.3s ease;
-            opacity: 0.6;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .icon-button:hover {
-            opacity: 1;
+            bottom: 0.25rem;
+            right: 0.25rem;
         }
         .icon-button svg {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
         }
-        @media (max-width: 768px) {
-    #sidebar {
-        position: fixed;
-        left: -100%;
-        top: 0;
-        bottom: 0;
-        width: 35%; /* 改为35% */
-        min-width: 200px; /* 设置最小宽度，确保在非常窄的屏幕上仍然可用 */
-        max-width: 300px; /* 保留最大宽度限制 */
-        z-index: 50;
-        transition: left 0.3s ease-in-out;
-    }
-            #sidebar.open {
-                left: 0;
-            }
-            #mainContent {
-                width: 100%;
-            }
-
-    #sidebar h2 {
-        font-size: 1.2rem; /* 减小标题字体大小 */
-    }
-
-    #sidebar button, #topicList div {
-        font-size: 0.9rem; /* 减小按钮和主题列表项的字体大小 */
-        padding: 0.5rem; /* 减小内边距 */
-    }
-#settingsModal, #newTopicModal {
-    z-index: 100; /* 确保比侧边栏的z-index高 */
-}
-            #settingsModal .bg-white, #newTopicModal .bg-white {
-                width: 90%;
-                max-width: 350px;
-                margin: 10% auto;
-            }
-            .bg-white.shadow-md.p-4 {
-                padding: 0.5rem;
-            }
-            #currentTopic {
-                font-size: 1.2rem;
-            }
-            #modelSelect {
-                font-size: 0.9rem;
-            }
-            #chatContainer {
-                height: calc(100vh - 110px);
-            }
-            .message {
-                max-width: 90%;
-            }
-            .ai-message {
-                padding: 0.75rem;
-                padding-bottom: 2.5rem;
-            }
-            .message-actions {
-                bottom: 0.25rem;
-                right: 0.25rem;
-            }
-            .icon-button svg {
-                width: 16px;
-                height: 16px;
-            }
-            #userInput {
-                font-size: 0.9rem;
-            }
-            #sendBtn {
-                font-size: 0.9rem;
-                padding: 0.5rem 1rem;
-            }
+        #userInput {
+            font-size: 0.9rem;
         }
-    </style>
+        #sendBtn {
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+        }
+        #settingsModal .bg-white, #newTopicModal .bg-white {
+            width: 90%;
+            max-width: 350px;
+            margin: 10% auto;
+            padding: 1.5rem;
+        }
+        .modal-title {
+            font-size: 1.2rem;
+        }
+    }
+</style>
 </head>
 <body class="bg-gray-100">
     <div class="flex-1 flex overflow-hidden h-screen">
@@ -185,23 +234,30 @@
         </div>
     </div>
 
-    <div id="settingsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
-        <div class="bg-white p-6 rounded-lg">
-            <h2 id="设置" class="text-2xl font-bold mb-4">设置</h2>
-            <div class="mb-4">
-                <label for="apiKey" class="block mb-2">API Key:</label>
-                <input id="apiKey" type="password" class="w-full border rounded p-2">
-            </div>
-            <div class="mb-4">
-                <label for="temperature" class="block mb-2">Temperature (0-1):</label>
-                <input id="temperature" type="number" min="0" max="1" step="0.1" class="w-full border rounded p-2">
-            </div>
-            <div class="flex justify-end">
-                <button id="saveSettingsBtn" class="bg-blue-500 text-white px-4 py-2 rounded mr-2 hover:bg-blue-600 transition-colors duration-200">保存</button>
-                <button id="closeSettingsBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition-colors duration-200">关闭</button>
-            </div>
+<div id="settingsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
+    <div class="bg-white p-6 rounded-lg">
+        <h2 class="modal-title">设置</h2>
+        <div class="form-group">
+            <label for="apiKey">API Key:</label>
+            <input id="apiKey" type="password" class="w-full border rounded p-2">
+        </div>
+        <div class="form-group">
+            <label for="temperature">Temperature (0-1):</label>
+            <input id="temperature" type="number" min="0" max="1" step="0.1" class="w-full border rounded p-2">
+        </div>
+        <div class="form-group">
+            <label for="apiLine">线路:</label>
+            <select id="apiLine" class="w-full border rounded p-2">
+                <option value="https://opus.gptuu.com/v1/chat/completions">线路1</option>
+                <option value="https://capi.swt-ai.com/v1/chat/completions">线路2</option>
+            </select>
+        </div>
+        <div class="modal-buttons">
+            <button id="saveSettingsBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors duration-200">保存</button>
+            <button id="closeSettingsBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400 transition-colors duration-200">关闭</button>
         </div>
     </div>
+</div>
 
     <div id="newTopicModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
         <div class="bg-white p-6 rounded-lg">
@@ -218,51 +274,56 @@
     </div>
 
     <script>
-        const apiUrl = 'https://opus.gptuu.com/v1/chat/completions';
-        let apiKey = localStorage.getItem('apiKey') || '';
-        let temperature = parseFloat(localStorage.getItem('temperature')) || 0.7;
-        let currentTopic = null;
-        let topics = JSON.parse(localStorage.getItem('topics')) || [];
-        let appInitialized = false;
+const apiUrls = {
+    line1: 'https://opus.gptuu.com/v1/chat/completions',
+    line2: 'https://capi.swt-ai.com/v1/chat/completions'
+};
+let currentApiUrl = localStorage.getItem('currentApiUrl') || apiUrls.line1;
+let apiKey = localStorage.getItem('apiKey') || '';
+let temperature = parseFloat(localStorage.getItem('temperature')) || 0.7;
+let currentTopic = null;
+let topics = JSON.parse(localStorage.getItem('topics')) || [];
+let appInitialized = false;
 
-        const chatContainer = document.getElementById('chatContainer');
-        const userInput = document.getElementById('userInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const settingsBtn = document.getElementById('settingsBtn');
-        const settingsModal = document.getElementById('settingsModal');
-        const apiKeyInput = document.getElementById('apiKey');
-        const temperatureInput = document.getElementById('temperature');
-        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-        const modelSelect = document.getElementById('modelSelect');
-        const sidebar = document.getElementById('sidebar');
-        const topicList = document.getElementById('topicList');
-        const newTopicBtn = document.getElementById('newTopicBtn');
-        const newTopicModal = document.getElementById('newTopicModal');
-        const topicNameInput = document.getElementById('topicName');
-        const createTopicBtn = document.getElementById('createTopicBtn');
-        const closeNewTopicBtn = document.getElementById('closeNewTopicBtn');
-        const currentTopicElement = document.getElementById('currentTopic');
-        const menuToggle = document.getElementById('menuToggle');
-        const mainContent = document.getElementById('mainContent');
+const chatContainer = document.getElementById('chatContainer');
+const userInput = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const apiKeyInput = document.getElementById('apiKey');
+const temperatureInput = document.getElementById('temperature');
+const apiLineSelect = document.getElementById('apiLine');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const modelSelect = document.getElementById('modelSelect');
+const sidebar = document.getElementById('sidebar');
+const topicList = document.getElementById('topicList');
+const newTopicBtn = document.getElementById('newTopicBtn');
+const newTopicModal = document.getElementById('newTopicModal');
+const topicNameInput = document.getElementById('topicName');
+const createTopicBtn = document.getElementById('createTopicBtn');
+const closeNewTopicBtn = document.getElementById('closeNewTopicBtn');
+const currentTopicElement = document.getElementById('currentTopic');
+const menuToggle = document.getElementById('menuToggle');
+const mainContent = document.getElementById('mainContent');
 
-        function preprocessAIResponse(content) {
-            content = content.replace(/\n{2,}/g, '\n<paragraph-break>\n');
-            content = content.replace(/^(\s*)(\d+\.\s|\-\s|\•\s)/gm, '$1- ');
-            content = content.replace(/^(\s*)-\s(.+)$/gm, (match, space, text) => {
-                if (!/^\*\*.*\*\*/.test(text)) {
-                    const colonIndex = text.indexOf(':');
-                    if (colonIndex !== -1) {
-                        const title = text.slice(0, colonIndex).trim();
-                        const rest = text.slice(colonIndex + 1).trim();
-                        return `${space}- **${title}**: ${rest}`;
-                    }
-                }
-                return match;
-            });
-            content = content.replace(/<paragraph-break>/g, '\n\n');
-            return content;
+function preprocessAIResponse(content) {
+    content = content.replace(/\n{2,}/g, '\n<paragraph-break>\n');
+    content = content.replace(/^(\s*)(\d+\.\s|\-\s|\•\s)/gm, '$1- ');
+    content = content.replace(/^(\s*)-\s(.+)$/gm, (match, space, text) => {
+        if (!/^\*\*.*\*\*/.test(text)) {
+            const colonIndex = text.indexOf(':');
+            if (colonIndex !== -1) {
+                const title = text.slice(0, colonIndex).trim();
+                const rest = text.slice(colonIndex + 1).trim();
+                return `${space}- **${title}**: ${rest}`;
+            }
         }
+        return match;
+    });
+    content = content.replace(/<paragraph-break>/g, '\n\n');
+    return content;
+}
 
 function addMessage(content, isUser = false, shouldSave = true) {
     const messageDiv = document.createElement('div');
@@ -309,169 +370,169 @@ function addMessage(content, isUser = false, shouldSave = true) {
 }
 
 function addCopyButtonListener(button) {
-            button.addEventListener('click', function() {
-                const messageId = this.getAttribute('data-message-id');
-                const messageToCopy = document.getElementById(messageId);
-                const range = document.createRange();
-                range.selectNode(messageToCopy);
-                window.getSelection().removeAllRanges();
-                window.getSelection().addRange(range);
-                document.execCommand('copy');
-                window.getSelection().removeAllRanges();
-                
-                this.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                `;
-                setTimeout(() => {
-                    this.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                    `;
-                }, 2000);
-            });
-        }
-
-        function addRegenerateButtonListener(button) {
-            button.addEventListener('click', function() {
-                const messageId = this.getAttribute('data-message-id');
-                const messageElement = document.getElementById(messageId);
-                
-                const lastUserMessage = currentTopic.messages.filter(msg => msg.role === 'user').pop();
-                
-                if (lastUserMessage) {
-                    messageElement.closest('.ai-message').remove();
-                    currentTopic.messages.pop();
-                    sendMessage(lastUserMessage.content);
-                }
-            });
-        }
-
-        async function sendMessage(message = null) {
-            const userMessage = message || userInput.value.trim();
-            if (!userMessage) return;
-
-            if (!message) {
-                addMessage(userMessage, true);
-                userInput.value = '';
-            }
-
-            const messageId = 'msg-' + Date.now();
-            const aiMessageDiv = document.createElement('div');
-            aiMessageDiv.classList.add('mb-4', 'message', 'mr-auto');
-            aiMessageDiv.innerHTML = `
-                <div class="ai-message">
-                    <div class="message-content" id="${messageId}">AI正在思考中...</div>
-                    <div class="message-actions">
-                        <button class="icon-button regenerate-button" data-message-id="${messageId}" title="重新生成">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                        </button>
-                        <button class="icon-button copy-button" data-message-id="${messageId}" title="复制">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
+    button.addEventListener('click', function() {
+        const messageId = this.getAttribute('data-message-id');
+        const messageToCopy = document.getElementById(messageId);
+        const range = document.createRange();
+        range.selectNode(messageToCopy);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+        
+        this.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+        `;
+        setTimeout(() => {
+            this.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
             `;
-            chatContainer.appendChild(aiMessageDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }, 2000);
+    });
+}
 
-            try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: modelSelect.value,
-                        messages: currentTopic.messages,
-                        temperature: temperature,
-                        stream: true
-                    })
-                });
+function addRegenerateButtonListener(button) {
+    button.addEventListener('click', function() {
+        const messageId = this.getAttribute('data-message-id');
+        const messageElement = document.getElementById(messageId);
+        
+        const lastUserMessage = currentTopic.messages.filter(msg => msg.role === 'user').pop();
+        
+        if (lastUserMessage) {
+            messageElement.closest('.ai-message').remove();
+            currentTopic.messages.pop();
+            sendMessage(lastUserMessage.content);
+        }
+    });
+}
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+async function sendMessage(message = null) {
+    const userMessage = message || userInput.value.trim();
+    if (!userMessage) return;
 
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let aiMessage = '';
+    if (!message) {
+        addMessage(userMessage, true);
+        userInput.value = '';
+    }
 
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
+    const messageId = 'msg-' + Date.now();
+    const aiMessageDiv = document.createElement('div');
+    aiMessageDiv.classList.add('mb-4', 'message', 'mr-auto');
+    aiMessageDiv.innerHTML = `
+        <div class="ai-message">
+            <div class="message-content" id="${messageId}">AI正在思考中...</div>
+            <div class="message-actions">
+                <button class="icon-button regenerate-button" data-message-id="${messageId}" title="重新生成">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+                <button class="icon-button copy-button" data-message-id="${messageId}" title="复制">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+    chatContainer.appendChild(aiMessageDiv);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
 
-                    const chunk = decoder.decode(value);
-                    const lines = chunk.split('\n');
-                    const parsedLines = lines
-                        .map(line => line.replace(/^data: /, '').trim())
-                        .filter(line => line !== '' && line !== '[DONE]')
-                        .map(line => {
-                            try {
-                                return JSON.parse(line);
-                            } catch (e) {
-                                console.error('Error parsing JSON:', e);
-                                return null;
-                            }
-                        })
-                        .filter(line => line !== null);
+    try {
+        const response = await fetch(currentApiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: modelSelect.value,
+                messages: currentTopic.messages,
+                temperature: temperature,
+                stream: true
+            })
+        });
 
-                    for (const parsedLine of parsedLines) {
-                        const { choices } = parsedLine;
-                        if (choices && choices.length > 0) {
-                            const { delta } = choices[0];
-                            const { content } = delta;
-                            if (content) {
-                                aiMessage += content;
-                                document.getElementById(messageId).innerHTML = marked.parse(preprocessAIResponse(aiMessage));
-                            }
-                        }
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let aiMessage = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n');
+            const parsedLines = lines
+                .map(line => line.replace(/^data: /, '').trim())
+                .filter(line => line !== '' && line !== '[DONE]')
+                .map(line => {
+                    try {
+                        return JSON.parse(line);
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e);
+                        return null;
+                    }
+                })
+                .filter(line => line !== null);
+
+            for (const parsedLine of parsedLines) {
+                const { choices } = parsedLine;
+                if (choices && choices.length > 0) {
+                    const { delta } = choices[0];
+                    const { content } = delta;
+                    if (content) {
+                        aiMessage += content;
+                        document.getElementById(messageId).innerHTML = marked.parse(preprocessAIResponse(aiMessage));
                     }
                 }
-
-                if (currentTopic) {
-                    currentTopic.messages.push({ role: 'assistant', content: aiMessage });
-                    currentTopic.model = modelSelect.value;
-                    saveTopic(currentTopic);
-                }
-
-                addCopyButtonListener(aiMessageDiv.querySelector('.copy-button'));
-                addRegenerateButtonListener(aiMessageDiv.querySelector('.regenerate-button'));
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById(messageId).innerHTML = `抱歉，发生了错误：${error.message}`;
             }
         }
 
-        function createTopic(name) {
-            const topic = {
-                id: Date.now(),
-                name: name,
-                messages: [],
-                model: modelSelect.value
-            };
-            topics.push(topic);
-            saveTopic(topic);
-            renderTopicList();
-            switchTopic(topic);
+        if (currentTopic) {
+            currentTopic.messages.push({ role: 'assistant', content: aiMessage });
+            currentTopic.model = modelSelect.value;
+            saveTopic(currentTopic);
         }
 
-        function saveTopic(topic) {
-            const index = topics.findIndex(t => t.id === topic.id);
-            if (index !== -1) {
-                topics[index] = {...topic};
-            } else {
-                topics.push({...topic});
-            }
-            localStorage.setItem('topics', JSON.stringify(topics));
-        }
+        addCopyButtonListener(aiMessageDiv.querySelector('.copy-button'));
+        addRegenerateButtonListener(aiMessageDiv.querySelector('.regenerate-button'));
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById(messageId).innerHTML = `抱歉，发生了错误：${error.message}`;
+    }
+}
+
+function createTopic(name) {
+    const topic = {
+        id: Date.now(),
+        name: name,
+        messages: [],
+        model: modelSelect.value
+    };
+    topics.push(topic);
+    saveTopic(topic);
+    renderTopicList();
+    switchTopic(topic);
+}
+
+function saveTopic(topic) {
+    const index = topics.findIndex(t => t.id === topic.id);
+    if (index !== -1) {
+        topics[index] = {...topic};
+    } else {
+        topics.push({...topic});
+    }
+    localStorage.setItem('topics', JSON.stringify(topics));
+}
 
 function switchTopic(topic) {
     currentTopic = topic;
@@ -490,38 +551,38 @@ function switchTopic(topic) {
     renderTopicList();
 }
 
-        function renderTopicList() {
-            topicList.innerHTML = '';
-            topics.forEach(topic => {
-                const topicDiv = document.createElement('div');
-                topicDiv.classList.add('flex', 'justify-between', 'items-center', 'mb-2', 'p-2', 'rounded', 'cursor-pointer', 'hover:bg-gray-600', 'transition-colors', 'duration-200');
-                if (currentTopic && currentTopic.id === topic.id) {
-                    topicDiv.classList.add('topic-active');
-                } else {
-                    topicDiv.classList.add('bg-gray-700');
-                }
-                topicDiv.innerHTML = `
-                    <span class="flex-grow">${topic.name}</span>
-                    <button class="delete-topic-btn text-red-500 hover:text-red-700 ml-2">×</button>
-                `;
-                topicDiv.addEventListener('click', () => switchTopic(topic));
-                topicDiv.querySelector('.delete-topic-btn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    deleteTopic(topic.id);
-                });
-                topicList.appendChild(topicDiv);
-            });
+function renderTopicList() {
+    topicList.innerHTML = '';
+    topics.forEach(topic => {
+        const topicDiv = document.createElement('div');
+        topicDiv.classList.add('flex', 'justify-between', 'items-center', 'mb-2', 'p-2', 'rounded', 'cursor-pointer', 'hover:bg-gray-600', 'transition-colors', 'duration-200');
+        if (currentTopic && currentTopic.id === topic.id) {
+            topicDiv.classList.add('topic-active');
+        } else {
+            topicDiv.classList.add('bg-gray-700');
         }
+        topicDiv.innerHTML = `
+            <span class="flex-grow">${topic.name}</span>
+            <button class="delete-topic-btn text-red-500 hover:text-red-700 ml-2">×</button>
+        `;
+        topicDiv.addEventListener('click', () => switchTopic(topic));
+        topicDiv.querySelector('.delete-topic-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteTopic(topic.id);
+        });
+        topicList.appendChild(topicDiv);
+    });
+}
 
-        function deleteTopic(topicId) {
-            topics = topics.filter(t => t.id !== topicId);
-            localStorage.setItem('topics', JSON.stringify(topics));
-            if (currentTopic && currentTopic.id === topicId) {
-                switchTopic(topics.length > 0 ? topics[0] : null);
-            } else {
-                renderTopicList();
-            }
-        }
+function deleteTopic(topicId) {
+    topics = topics.filter(t => t.id !== topicId);
+    localStorage.setItem('topics', JSON.stringify(topics));
+    if (currentTopic && currentTopic.id === topicId) {
+        switchTopic(topics.length > 0 ? topics[0] : null);
+    } else {
+        renderTopicList();
+    }
+}
 
 function setupModalListeners(modalId, openBtnId, closeBtnId) {
     const modal = document.getElementById(modalId);
@@ -550,67 +611,78 @@ function setupModalListeners(modalId, openBtnId, closeBtnId) {
 setupModalListeners('settingsModal', 'settingsBtn', 'closeSettingsBtn');
 setupModalListeners('newTopicModal', 'newTopicBtn', 'closeNewTopicBtn');
 
-        function initializeApp() {
-            if (appInitialized) return;
-            
-            topics = JSON.parse(localStorage.getItem('topics')) || [];
-            renderTopicList();
-            if (topics.length > 0) {
-                switchTopic(topics[0]);
-            }
-            
-            appInitialized = true;
-        }
+function initializeApp() {
+    if (appInitialized) return;
+    
+    topics = JSON.parse(localStorage.getItem('topics')) || [];
+    renderTopicList();
+    if (topics.length > 0) {
+        switchTopic(topics[0]);
+    }
+    
+    apiKey = localStorage.getItem('apiKey') || '';
+    temperature = parseFloat(localStorage.getItem('temperature')) || 0.7;
+    currentApiUrl = localStorage.getItem('currentApiUrl') || apiUrls.line1;
+    
+    apiKeyInput.value = apiKey;
+    temperatureInput.value = temperature;
+    apiLineSelect.value = currentApiUrl;
+    
+    appInitialized = true;
+}
 
-        sendBtn.addEventListener('click', () => sendMessage());
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+sendBtn.addEventListener('click', () => sendMessage());
+userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
 
-        settingsBtn.addEventListener('click', () => {
-            apiKeyInput.value = apiKey;
-            temperatureInput.value = temperature;
-            settingsModal.classList.remove('hidden');
-            settingsModal.classList.add('flex');
-        });
+settingsBtn.addEventListener('click', () => {
+    apiKeyInput.value = apiKey;
+    temperatureInput.value = temperature;
+    apiLineSelect.value = currentApiUrl;
+    settingsModal.classList.remove('hidden');
+    settingsModal.classList.add('flex');
+});
 
-        saveSettingsBtn.addEventListener('click', () => {
-            apiKey = apiKeyInput.value;
-            temperature = parseFloat(temperatureInput.value);
-            localStorage.setItem('apiKey', apiKey);
-            localStorage.setItem('temperature', temperature);
-            settingsModal.classList.add('hidden');
-            settingsModal.classList.remove('flex');
-        });
+saveSettingsBtn.addEventListener('click', () => {
+    apiKey = apiKeyInput.value;
+    temperature = parseFloat(temperatureInput.value);
+    currentApiUrl = apiLineSelect.value;
+    localStorage.setItem('apiKey', apiKey);
+    localStorage.setItem('temperature', temperature);
+    localStorage.setItem('currentApiUrl', currentApiUrl);
+    settingsModal.classList.add('hidden');
+    settingsModal.classList.remove('flex');
+});
 
-        closeSettingsBtn.addEventListener('click', () => {
-            settingsModal.classList.add('hidden');
-            settingsModal.classList.remove('flex');
-        });
+closeSettingsBtn.addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+    settingsModal.classList.remove('flex');
+});
 
-        newTopicBtn.addEventListener('click', () => {
-            newTopicModal.classList.remove('hidden');
-            newTopicModal.classList.add('flex');
-        });
+newTopicBtn.addEventListener('click', () => {
+    newTopicModal.classList.remove('hidden');
+    newTopicModal.classList.add('flex');
+});
 
-        createTopicBtn.addEventListener('click', () => {
-            const topicName = topicNameInput.value.trim();
-            if (topicName) {
-                createTopic(topicName);
-                topicNameInput.value = '';
-                newTopicModal.classList.add('hidden');
-                newTopicModal.classList.remove('flex');
-            }
-        });
+createTopicBtn.addEventListener('click', () => {
+    const topicName = topicNameInput.value.trim();
+    if (topicName) {
+        createTopic(topicName);
+        topicNameInput.value = '';
+        newTopicModal.classList.add('hidden');
+        newTopicModal.classList.remove('flex');
+    }
+});
 
-        closeNewTopicBtn.addEventListener('click', () => {
-            topicNameInput.value = '';
-            newTopicModal.classList.add('hidden');
-            newTopicModal.classList.remove('flex');
-        });
+closeNewTopicBtn.addEventListener('click', () => {
+    topicNameInput.value = '';
+    newTopicModal.classList.add('hidden');
+    newTopicModal.classList.remove('flex');
+});
 
 menuToggle.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -629,16 +701,15 @@ sidebar.addEventListener('click', (e) => {
     e.stopPropagation();
 });
 
-        modelSelect.addEventListener('change', function() {
-            if (currentTopic) {
-                currentTopic.model = this.value;
-                saveTopic(currentTopic);
-            }
-        });
+modelSelect.addEventListener('change', function() {
+    if (currentTopic) {
+        currentTopic.model = this.value;
+        saveTopic(currentTopic);
+    }
+});
 
-
-        // 在页面加载完成后初始化应用
-        window.addEventListener('load', initializeApp);
+// 在页面加载完成后初始化应用
+window.addEventListener('load', initializeApp);
     </script>
 </body>
 </html>
